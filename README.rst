@@ -116,11 +116,13 @@ This library uses `OpenTelemetry`_ to output tracing data from API calls to Clou
 For information on the benefits and utility of tracing, see the `Cloud Trace docs <https://cloud.google.com/trace/docs/overview>`_.
 
 To enable OpenTelemetry tracing in the Cloud Storage client, we first need to install OpenTelemetry:
+
 .. code-block:: console
 
     pip install google-cloud-storage[tracing]
 
 We also need to tell OpenTelemetry which exporter to use. An example to export traces to `Cloud Trace`_ can be found below.
+
 .. code-block:: console
 
     # Install the Google Cloud Trace exporter and propagator, however you can use any exporter of your choice.
