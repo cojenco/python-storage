@@ -117,16 +117,19 @@ For information on the benefits and utility of tracing, see the `Cloud Trace doc
 
 To enable OpenTelemetry tracing in the Cloud Storage client, we first need to install OpenTelemetry:
 .. code-block:: console
+
     pip install google-cloud-storage[tracing]
 
 We also need to tell OpenTelemetry which exporter to use. An example to export traces to `Cloud Trace`_ can be found below.
 .. code-block:: console
+
     # Install the Google Cloud Trace exporter and propagator, however you can use any exporter of your choice.
     pip install opentelemetry-exporter-gcp-trace opentelemetry-propagator-gcp
     # [Optional] Install the OpenTelemetry Requests Instrumentation to trace the underlying HTTP requests.
     pip install opentelemetry-instrumentation-requests
 
 .. code-block:: python
+
     from opentelemetry import trace
     from opentelemetry.sdk.trace import TracerProvider
     from opentelemetry.sdk.trace.export import BatchSpanProcessor
