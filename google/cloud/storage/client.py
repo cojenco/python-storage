@@ -41,6 +41,7 @@ from google.cloud.storage._helpers import _DEFAULT_SCHEME
 from google.cloud.storage._helpers import _STORAGE_HOST_TEMPLATE
 from google.cloud.storage._helpers import _NOW
 from google.cloud.storage._helpers import _UTC
+from google.cloud.storage._opentelemetry_tracing import create_span
 
 from google.cloud.storage._http import Connection
 from google.cloud.storage._signing import (
@@ -141,6 +142,7 @@ class Client(ClientWithProject):
         self._initial_client_info = client_info
         self._initial_client_options = client_options
         self._extra_headers = extra_headers
+        self._otel_tracer_provider = None
 
         connection_kw_args = {"client_info": client_info}
 
@@ -362,7 +364,15 @@ class Client(ClientWithProject):
             project = self.project
 
         path = f"/projects/{project}/serviceAccount"
-        api_response = self._get_resource(path, timeout=timeout, retry=retry)
+        ### START OTEL EXP ###
+        span_attributes = {"path": path}
+        with create_span(
+            name="Storage.getServiceAccountEmail",
+            attributes=span_attributes,
+            client=self,
+        ):
+            api_response = self._get_resource(path, timeout=timeout, retry=retry)
+        ### END OTEL EXP ###
         return api_response["email_address"]
 
     def bucket(self, bucket_name, user_project=None):
@@ -910,6 +920,7 @@ class Client(ClientWithProject):
         except NotFound:
             return None
 
+    @create_span(name="Storage.Client.create_bucket")
     def create_bucket(
         self,
         bucket_or_name,
@@ -1762,6 +1773,12 @@ class Client(ClientWithProject):
             url = f"{self.api_endpoint}/{bucket_name}/"
 
         return {"url": url, "fields": policy_fields}
+
+    def set_opentelemetry_tracer_provider(self, tracer_provider):
+        self._otel_tracer_provider = tracer_provider
+
+    def get_opentelemetry_tracer_provider(self):
+        return self._otel_tracer_provider
 
 
 def _item_to_bucket(iterator, item):

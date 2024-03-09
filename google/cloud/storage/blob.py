@@ -63,6 +63,7 @@ from google.cloud.storage._signing import generate_signed_url_v4
 from google.cloud.storage._helpers import _NUM_RETRIES_MESSAGE
 from google.cloud.storage._helpers import _API_VERSION
 from google.cloud.storage._helpers import _virtual_hosted_style_base_url
+from google.cloud.storage._opentelemetry_tracing import create_span
 from google.cloud.storage.acl import ACL
 from google.cloud.storage.acl import ObjectACL
 from google.cloud.storage.constants import _DEFAULT_TIMEOUT
@@ -1316,6 +1317,7 @@ class Blob(_PropertyMixin):
             retry=retry,
         )
 
+    @create_span(name="CloudStorage.Blob/download_as_bytes")
     def download_as_bytes(
         self,
         client=None,
@@ -2281,14 +2283,19 @@ class Blob(_PropertyMixin):
             retry=retry,
             command=command,
         )
-        while not upload.finished:
-            try:
-                response = upload.transmit_next_chunk(transport, timeout=timeout)
-            except resumable_media.DataCorruption:
-                # Attempt to delete the corrupted object.
-                self.delete()
-                raise
-        return response
+        extra_attributes = {"CloudStorage.upload_id": upload.resumable_url}
+        with create_span(
+            name="CloudStorage.ResumableUpload/transmit_next_chunk",
+            attributes=extra_attributes,
+        ):
+            while not upload.finished:
+                try:
+                    response = upload.transmit_next_chunk(transport, timeout=timeout)
+                except resumable_media.DataCorruption:
+                    # Attempt to delete the corrupted object.
+                    self.delete()
+                    raise
+            return response
 
     def _do_upload(
         self,
@@ -2644,6 +2651,7 @@ class Blob(_PropertyMixin):
         except resumable_media.InvalidResponse as exc:
             _raise_from_invalid_response(exc)
 
+    @create_span(name="CloudStorage.Blob/upload_from_file")
     def upload_from_file(
         self,
         file_obj,
@@ -2824,6 +2832,7 @@ class Blob(_PropertyMixin):
                 **kwargs,
             )
 
+    @create_span(name="CloudStorage.Blob/upload_from_filename")
     def upload_from_filename(
         self,
         filename,
@@ -2961,6 +2970,7 @@ class Blob(_PropertyMixin):
             retry=retry,
         )
 
+    @create_span(name="CloudStorage.Blob/upload_from_string")
     def upload_from_string(
         self,
         data,
