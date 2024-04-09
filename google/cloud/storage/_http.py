@@ -66,10 +66,13 @@ class Connection(_http.JSONConnection):
 
     def api_request(self, *args, **kwargs):
         retry = kwargs.pop("retry", None)
-        kwargs["extra_api_info"] = _helpers._get_invocation_id()
+        invocation_id = _helpers._get_invocation_id()
+        kwargs["extra_api_info"] = invocation_id
         call = functools.partial(super(Connection, self).api_request, *args, **kwargs)
         ### START OTEL EXP ###
-        span_attributes = {}
+        span_attributes = {
+            "invocation_id": invocation_id,
+        }
         with create_span(
             name="Storage.Connection.api_request",
             attributes=span_attributes,
