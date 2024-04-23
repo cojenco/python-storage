@@ -112,8 +112,8 @@ Windows
 Tracing With OpenTelemetry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This library uses `OpenTelemetry`_ to generate tracing data from API calls to Google Cloud Storage.
-For information on the benefits and utility of tracing, see the `Cloud Trace Overview <https://cloud.google.com/trace/docs/overview>`_.
+This library uses `OpenTelemetry`_ to generate traces on calls to Google Cloud Storage.
+For information on the benefits and utility of tracing, read the `Cloud Trace Overview <https://cloud.google.com/trace/docs/overview>`_.
 
 To enable OpenTelemetry tracing in the Cloud Storage client, first install OpenTelemetry:
 
@@ -121,7 +121,7 @@ To enable OpenTelemetry tracing in the Cloud Storage client, first install OpenT
 
     pip install google-cloud-storage[tracing]
 
-Set the `ENABLE_GCS_PYTHON_CLIENT_OTEL_TRACES` environment variable to selectively opt-in tracing for Cloud Storage.
+Set the ``ENABLE_GCS_PYTHON_CLIENT_OTEL_TRACES`` environment variable to selectively opt-in tracing for the Cloud Storage client.
 
 .. code-block:: console
 
@@ -152,9 +152,9 @@ You will also need to tell OpenTelemetry which exporter to use. An example to ex
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
     RequestsInstrumentor().instrument(tracer_provider=tracer_provider)
 
-In this example all tracing data will be published to the `Google Cloud Trace`_ console.
+In this example, tracing data will be published to the `Google Cloud Trace`_ console.
 Tracing is most effective when many libraries are instrumented to provide insight over the entire lifespan of a request.
-For a list of libraries that can be instrumented, see the `OpenTelemetry Registry`_.
+For a list of libraries that can be instrumented, refer to the `OpenTelemetry Registry`_.
 
 .. _OpenTelemetry: https://opentelemetry.io
 .. _OpenTelemetry Registry: https://opentelemetry.io/ecosystem/registry
