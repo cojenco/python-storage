@@ -112,21 +112,28 @@ Windows
 Tracing With OpenTelemetry
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This library uses `OpenTelemetry`_ to output tracing data from API calls to Cloud Storage.
-For information on the benefits and utility of tracing, see the `Cloud Trace docs <https://cloud.google.com/trace/docs/overview>`_.
+This library uses `OpenTelemetry`_ to generate tracing data from API calls to Google Cloud Storage.
+For information on the benefits and utility of tracing, see the `Cloud Trace Overview <https://cloud.google.com/trace/docs/overview>`_.
 
-To enable OpenTelemetry tracing in the Cloud Storage client, we first need to install OpenTelemetry:
+To enable OpenTelemetry tracing in the Cloud Storage client, first install OpenTelemetry:
 
 .. code-block:: console
 
     pip install google-cloud-storage[tracing]
 
-We also need to tell OpenTelemetry which exporter to use. An example to export traces to `Cloud Trace`_ can be found below.
+Set the `ENABLE_GCS_PYTHON_CLIENT_OTEL_TRACES` environment variable to selectively opt-in tracing for Cloud Storage.
+
+.. code-block:: console
+
+    export ENABLE_GCS_PYTHON_CLIENT_OTEL_TRACES=True
+
+You will also need to tell OpenTelemetry which exporter to use. An example to export traces to Google Cloud Trace can be found below.
 
 .. code-block:: console
 
     # Install the Google Cloud Trace exporter and propagator, however you can use any exporter of your choice.
     pip install opentelemetry-exporter-gcp-trace opentelemetry-propagator-gcp
+
     # [Optional] Install the OpenTelemetry Requests Instrumentation to trace the underlying HTTP requests.
     pip install opentelemetry-instrumentation-requests
 
@@ -145,13 +152,13 @@ We also need to tell OpenTelemetry which exporter to use. An example to export t
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
     RequestsInstrumentor().instrument(tracer_provider=tracer_provider)
 
-In this example all tracing data will be published to the Google `Cloud Trace`_ console.
+In this example all tracing data will be published to the `Google Cloud Trace`_ console.
 Tracing is most effective when many libraries are instrumented to provide insight over the entire lifespan of a request.
-For a list of libraries that can be instrumented, see the `OpenTelemetry documentation`_.
+For a list of libraries that can be instrumented, see the `OpenTelemetry Registry`_.
 
 .. _OpenTelemetry: https://opentelemetry.io
-.. _OpenTelemetry documentation: https://opentelemetry-python.readthedocs.io
-.. _Cloud Trace: https://cloud.google.com/trace
+.. _OpenTelemetry Registry: https://opentelemetry.io/ecosystem/registry
+.. _Google Cloud Trace: https://cloud.google.com/trace
 
 
 Next Steps
