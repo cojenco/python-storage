@@ -193,18 +193,25 @@ def conftest_retry(session):
     # Install all test dependencies and pytest plugin to run tests in parallel.
     # Then install this package in-place.
     session.install("pytest", "pytest-xdist")
-    session.install("-e", ".")
+    # session.install("-e", ".")
+
+    session.install("-e", ".", "tracing")
+    session.install(
+        "opentelemetry-exporter-gcp-trace",
+        "opentelemetry-propagator-gcp",
+        "opentelemetry-instrumentation-requests",
+    )
 
     # Run #CPU processes in parallel if no test session arguments are passed in.
     if session.posargs:
         test_cmd = [
             "py.test",
-            "--quiet",
+            "--verbose",
             conformance_test_folder_path,
             *session.posargs,
         ]
     else:
-        test_cmd = ["py.test", "-n", "auto", "--quiet", conformance_test_folder_path]
+        test_cmd = ["py.test", "-n", "auto", "--verbose", conformance_test_folder_path]
 
     # Run py.test against the conformance tests.
     session.run(*test_cmd)

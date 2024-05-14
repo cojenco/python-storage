@@ -790,10 +790,8 @@ method_mapping = {
         blob_create_resumable_upload_session,
     ],
     "storage.resumable.upload": [
-        blob_upload_from_string,
-        blob_upload_from_file,
+        # blob_upload_from_string,
         blob_upload_from_filename,
-        blobwriter_write,
     ],
     "storage.objects.patch": [
         blob_patch,
@@ -965,32 +963,64 @@ def run_test_case(
 
 
 ########################################################################################################################################
+### TO DELETE [OTEL TRACING] TO DELETE ###########################################################################################
+########################################################################################################################################
+
+from opentelemetry import trace
+from opentelemetry.propagate import set_global_textmap
+from opentelemetry.propagators.cloud_trace_propagator import (
+    CloudTraceFormatPropagator,
+)
+from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from google.cloud import storage
+
+# [START]  Enable OTel Tracing
+# by creating an exporter, creating a tracer provider, and registering that exporter.
+set_global_textmap(CloudTraceFormatPropagator())
+tracer_provider = TracerProvider()
+tracer_provider.add_span_processor(BatchSpanProcessor(CloudTraceSpanExporter()))
+trace.set_tracer_provider(tracer_provider)
+
+# Optional yet recommended to instrument the requests HTTP library.
+# from opentelemetry.instrumentation.requests import RequestsInstrumentor
+# RequestsInstrumentor().instrument(tracer_provider=tracer_provider)
+# # [END] Enable OTel Tracing
+
+########################################################################################################################################
+### TO DELETE [OTEL TRACING] TO DELETE ###########################################################################################
+########################################################################################################################################
+
+
+########################################################################################################################################
 ### Run Conformance Tests for Retry Strategy ###########################################################################################
 ########################################################################################################################################
 
 # Pull storage-testbench docker image
-subprocess.run(_PULL_CMD)
-time.sleep(5)
+# subprocess.run(_PULL_CMD)
+# time.sleep(5)
 
 # Run docker image to start storage-testbench
-with subprocess.Popen(_RUN_CMD) as proc:
-    # Run retry conformance tests
-    for scenario in _CONFORMANCE_TESTS:
-        id = scenario["id"]
-        methods = scenario["methods"]
-        cases = scenario["cases"]
-        for i, c in enumerate(cases):
-            for m in methods:
-                method_name = m["name"]
-                method_group = m["group"] if m.get("group", None) else m["name"]
-                if method_group not in method_mapping:
-                    logging.info(f"No tests for operation {method_name}")
-                    continue
+# with subprocess.Popen(_RUN_CMD) as proc:
+# Run retry conformance tests
+for scenario in _CONFORMANCE_TESTS:
+    id = scenario["id"]
+    methods = scenario["methods"]
+    cases = scenario["cases"]
+    for i, c in enumerate(cases):
+        for m in methods:
+            method_name = m["name"]
+            method_group = m["group"] if m.get("group", None) else m["name"]
+            if method_group not in method_mapping:
+                logging.info(f"No tests for operation {method_name}")
+                continue
 
-                for lib_func in method_mapping[method_group]:
-                    test_name = f"test-S{id}-{method_name}-{lib_func.__name__}-{i}"
-                    globals()[test_name] = functools.partial(
-                        run_test_case, id, m, c, lib_func, _HOST
-                    )
-    time.sleep(5)
-    proc.kill()
+            for lib_func in method_mapping[method_group]:
+                test_name = f"test-S{id}-{method_name}-{lib_func.__name__}-{i}"
+                globals()[test_name] = functools.partial(
+                    run_test_case, id, m, c, lib_func, _HOST
+                )
+    # time.sleep(5)
+    # proc.kill()

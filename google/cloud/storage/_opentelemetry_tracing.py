@@ -55,7 +55,6 @@ def create_span(name, attributes=None, client=None, **kwargs):
         name=name, kind=trace.SpanKind.CLIENT, attributes=final_attributes
     ) as span:
         try:
-            span.set_status(trace.Status(trace.StatusCode.OK))
             yield span
         except GoogleAPICallError as error:
             span.set_status(trace.Status(trace.StatusCode.ERROR))
