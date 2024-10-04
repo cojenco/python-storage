@@ -623,8 +623,14 @@ def generate_signed_url_v4(
     string_to_sign = "\n".join(string_elements)
 
     if access_token and service_account_email:
+        ### AUTH ###
+        # Replace to use a google auth IAM Signer and Signs messages using the IAM `signBlob API`_
+        # signer = google.auth.iam.Signer(request, credentials, mock.sentinel.service_account_email)
+        # signer.sign(message)
+        # Also reference https://github.com/googleapis/google-auth-library-python/blob/main/tests/test_iam.py#L81
         signature = _sign_message(string_to_sign, access_token, service_account_email)
         signature_bytes = base64.b64decode(signature)
+        ### AUTH ###
         signature = binascii.hexlify(signature_bytes).decode("ascii")
     else:
         signature_bytes = credentials.sign_bytes(string_to_sign.encode("ascii"))
@@ -666,12 +672,15 @@ def _sign_message(message, access_token, service_account_email):
     :returns: The signature of the message.
 
     """
+    ### AUTH ### This equals to AUTH  _make_signing_request(message)
+    ###  https://github.com/googleapis/google-auth-library-python/blob/main/google/auth/iam.py#L88
     message = _helpers._to_bytes(message)
 
     method = "POST"
     url = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{}:signBlob?alt=json".format(
         service_account_email
     )
+    ### Access token is applied in self._credentials.before_request
     headers = {
         "Authorization": "Bearer " + access_token,
         "Content-type": "application/json",
