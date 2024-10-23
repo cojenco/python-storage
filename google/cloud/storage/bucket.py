@@ -1974,7 +1974,7 @@ class Bucket(_PropertyMixin):
         api_path = blob.path + "/copyTo" + new_blob.path
         copy_result = client._post_resource(
             api_path,
-            None,
+            blob._properties,
             query_params=query_params,
             timeout=timeout,
             retry=retry,
