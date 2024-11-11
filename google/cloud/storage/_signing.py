@@ -271,6 +271,7 @@ def generate_signed_url_v2(
     query_parameters=None,
     service_account_email=None,
     access_token=None,
+    transport=None,
 ):
     """Generate a V2 signed URL to provide query-string auth'n to a resource.
 
@@ -432,6 +433,7 @@ def generate_signed_url_v4(
     query_parameters=None,
     service_account_email=None,
     access_token=None,
+    transport=None,
     _request_timestamp=None,  # for testing only
 ):
     """Generate a V4 signed URL to provide query-string auth'n to a resource.
@@ -623,8 +625,7 @@ def generate_signed_url_v4(
     string_to_sign = "\n".join(string_elements)
 
     if access_token and service_account_email:
-        signature = _sign_message(string_to_sign, access_token, service_account_email)
-        signature_bytes = base64.b64decode(signature)
+        signature_bytes = _sign_message(string_to_sign, access_token, service_account_email, transport, credentials)
         signature = binascii.hexlify(signature_bytes).decode("ascii")
     else:
         signature_bytes = credentials.sign_bytes(string_to_sign.encode("ascii"))
@@ -647,7 +648,7 @@ def get_v4_now_dtstamps():
     return timestamp, datestamp
 
 
-def _sign_message(message, access_token, service_account_email):
+def _sign_message(message, access_token, service_account_email, transport=None, credentials=None):
     """Signs a message.
 
     :type message: str
@@ -666,28 +667,13 @@ def _sign_message(message, access_token, service_account_email):
     :returns: The signature of the message.
 
     """
-    message = _helpers._to_bytes(message)
+    import copy
 
-    method = "POST"
-    url = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/{}:signBlob?alt=json".format(
-        service_account_email
-    )
-    headers = {
-        "Authorization": "Bearer " + access_token,
-        "Content-type": "application/json",
-    }
-    body = json.dumps({"payload": base64.b64encode(message).decode("utf-8")})
-
-    request = requests.Request()
-    response = request(url=url, method=method, body=body, headers=headers)
-
-    if response.status != http.client.OK:
-        raise exceptions.TransportError(
-            f"Error calling the IAM signBytes API: {response.data}"
-        )
-
-    data = json.loads(response.data.decode("utf-8"))
-    return data["signedBlob"]
+    iam_credentials = copy.deepcopy(credentials)
+    iam_credentials.token = access_token
+    signer = google.auth.iam.Signer(transport, iam_credentials, service_account_email)
+    signature = signer.sign(message)
+    return signature
 
 
 def _url_encode(query_params):

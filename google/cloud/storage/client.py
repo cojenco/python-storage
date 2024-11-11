@@ -1890,8 +1890,8 @@ class Client(ClientWithProject):
 
         # sign the policy and get its cryptographic signature
         if access_token and service_account_email:
-            signature = _sign_message(str_to_sign, access_token, service_account_email)
-            signature_bytes = base64.b64decode(signature)
+            transport = self._http._auth_request
+            signature_bytes = _sign_message(str_to_sign, access_token, service_account_email, transport, credentials)
         else:
             signature_bytes = credentials.sign_bytes(str_to_sign)
 

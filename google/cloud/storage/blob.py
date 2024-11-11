@@ -623,6 +623,9 @@ class Blob(_PropertyMixin):
             else:
                 headers.update(encryption_headers)
 
+        # New
+        client = self._require_client(client)
+        transport = self._get_transport(client)._auth_request
         return helper(
             credentials,
             resource=resource,
@@ -638,6 +641,7 @@ class Blob(_PropertyMixin):
             query_parameters=query_parameters,
             service_account_email=service_account_email,
             access_token=access_token,
+            transport=transport,
         )
 
     @create_trace_span(name="Storage.Blob.exists")
