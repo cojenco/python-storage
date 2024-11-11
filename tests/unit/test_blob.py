@@ -469,6 +469,7 @@ class Test_Blob(unittest.TestCase):
         virtual_hosted_style=False,
         bucket_bound_hostname=None,
         scheme="http",
+        transport=None,
     ):
         from urllib import parse
         from google.cloud.storage._helpers import _bucket_bound_hostname_url
@@ -494,6 +495,9 @@ class Test_Blob(unittest.TestCase):
             effective_version = "v2"
         else:
             effective_version = version
+
+        if transport is None:
+            transport = client._http.auth_request
 
         to_patch = f"google.cloud.storage.blob.generate_signed_url_{effective_version}"
 
@@ -564,6 +568,7 @@ class Test_Blob(unittest.TestCase):
             "query_parameters": query_parameters,
             "access_token": access_token,
             "service_account_email": service_account_email,
+            "transport": transport,
         }
         signer.assert_called_once_with(expected_creds, **expected_kwargs)
 

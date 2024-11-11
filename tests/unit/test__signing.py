@@ -18,6 +18,7 @@ import base64
 import binascii
 import calendar
 import datetime
+import http.client as http_client
 import json
 import time
 import unittest
@@ -26,6 +27,7 @@ import urllib.parse
 import mock
 import pytest
 
+from google.cloud.storage import _helpers
 from google.cloud.storage._helpers import _UTC
 from . import _read_local_json
 
@@ -710,24 +712,51 @@ class Test_sign_message(unittest.TestCase):
     def test_sign_bytes(self):
         signature = "DEADBEEF"
         data = {"signedBlob": signature}
-        request = make_request(200, data)
-        with mock.patch("google.auth.transport.requests.Request", return_value=request):
-            returned_signature = self._call_fut(
-                "123", service_account_email="service@example.com", access_token="token"
-            )
-            assert returned_signature == signature
+        request = make_request(http_client.OK, data)
+        credentials = _make_credentials()
+        transport = mock.Mock()
+    
+        with mock.patch("google.auth.iam.Signer._make_signing_request", return_value=request):
+            with mock.patch("google.auth.iam.Signer.sign", return_value=signature):
+                returned_signature = self._call_fut(
+                    message="123", service_account_email="service@example.com", access_token="token", credentials=credentials, transport=transport,
+                )
+                assert returned_signature == signature
 
     def test_sign_bytes_failure(self):
         from google.auth import exceptions
 
         request = make_request(401)
-        with mock.patch("google.auth.transport.requests.Request", return_value=request):
+        credentials = _make_credentials()
+        transport = mock.Mock()
+        with mock.patch("google.auth.transport.requests.Request", return_value=request) as mock_call:
             with pytest.raises(exceptions.TransportError):
                 self._call_fut(
                     "123",
                     service_account_email="service@example.com",
                     access_token="token",
+                    credentials=credentials,
+                    transport=transport,
                 )
+
+    def test_sign_bytes_retryable_failure(self):
+        from google.auth import exceptions
+
+        request = make_request(http_client.INTERNAL_SERVER_ERROR)
+        credentials = _make_credentials()
+        transport = mock.Mock()
+        signature = "DEADBEEF"
+
+        with mock.patch("google.auth.iam.Signer._make_signing_request", return_value=request) as mock_call:
+            with mock.patch("google.auth.iam.Signer.sign", return_value=signature):
+                returned_signature = self._call_fut(
+                    "123",
+                    service_account_email="service@example.com",
+                    access_token="token",
+                    credentials=credentials,
+                    transport=transport,
+                )
+                assert returned_signature == signature
 
 
 class TestCustomURLEncoding(unittest.TestCase):
@@ -885,7 +914,11 @@ def _make_credentials(signer_email=None):
         credentials.signer_email = signer_email
         return credentials
     else:
-        return mock.Mock(spec=google.auth.credentials.Credentials)
+        credentials = mock.Mock(
+            spec=google.auth.credentials.Credentials,
+            universe_domain=_helpers._DEFAULT_UNIVERSE_DOMAIN,
+        )
+        return credentials
 
 
 def make_request(status, data=None):
