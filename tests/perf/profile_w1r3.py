@@ -26,34 +26,85 @@ from google.cloud import storage
 
 import _perf_utils as _pu
 
+### TEMP ADDED FOR GRPC ###
+import crc32c
+from google.storage.v2 import storage_pb2
+from google.storage.v2 import storage_pb2_grpc
+import google.auth
+import google.auth.transport.grpc
+import google.auth.transport.requests
+from google.api_core import grpc_helpers
+### TEMP ADDED FOR GRPC ###
+
 
 def WRITE(bucket, blob_name, checksum, size, args, **kwargs):
     """Perform an upload and return latency."""
-    blob = bucket.blob(blob_name)
-    file_path = f"{os.getcwd()}/{uuid.uuid4().hex}"
-    # Create random file locally on disk
-    with open(file_path, "wb") as file_obj:
-        file_obj.write(os.urandom(size))
+    # blob = bucket.blob(blob_name)
+    # file_path = f"{os.getcwd()}/{uuid.uuid4().hex}"
+    # # Create random file locally on disk
+    # with open(file_path, "wb") as file_obj:
+    #     file_obj.write(os.urandom(size))
 
+    ### TEMP CREATE GRPC STUB ###
+    target = "storage.googleapis.com:443"
+    auth_scopes = (
+        "https://www.googleapis.com/auth/storage",
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/devstorage.full_control",
+    )
+    # Get credentials and create channel.
+    credentials, _ = google.auth.default(scopes=auth_scopes)
+    channel = grpc_helpers.create_channel(
+        target, credentials, default_scopes=auth_scopes
+    )
+    stub = storage_pb2_grpc.StorageStub(channel)
+    ### TEMP CREATE GRPC STUB ###
+
+    ### WRITE OBJECT ###
+    bucket_id = bucket.name
+    bucket_name = f"projects/_/buckets/{bucket_id}"
+    content = os.urandom(size)
     start_time = time.monotonic_ns()
-    blob.upload_from_filename(file_path, checksum=checksum, if_generation_match=0)
+    request = storage_pb2.WriteObjectRequest(
+        write_object_spec=storage_pb2.WriteObjectSpec(
+            resource={
+                "name": blob_name,
+                "bucket": bucket_name,
+            },
+        ),
+        write_offset=0,
+        checksummed_data=storage_pb2.ChecksummedData(
+            content=content, crc32c=crc32c.crc32c(content)
+        ),
+        finish_write=True,
+    )
+    requests = [request]
+    def request_generator():
+        for request in requests:
+            yield request
+    metadata = [("x-goog-request-params", f"bucket=projects/_/buckets/{bucket_id}")]
+    _ = stub.WriteObject(request_generator(), metadata=metadata)
     end_time = time.monotonic_ns()
+
+    # start_time = time.monotonic_ns()
+    # blob.upload_from_filename(file_path, checksum=checksum, if_generation_match=0)
+    # end_time = time.monotonic_ns()
 
     elapsed_time = round(
         (end_time - start_time) / 1000
     )  # convert nanoseconds to microseconds
 
     # Clean up local file
-    _pu.cleanup_file(file_path)
+    # _pu.cleanup_file(file_path)
 
     return elapsed_time
 
 
 def READ(bucket, blob_name, checksum, args, **kwargs):
     """Perform a download and return latency."""
-    blob = bucket.blob(blob_name)
-    if not blob.exists():
-        raise Exception("Blob does not exist. Previous WRITE failed.")
+    # blob = bucket.blob(blob_name)
+    # if not blob.exists():
+    #     raise Exception("Blob does not exist. Previous WRITE failed.")
 
     range_read_size = args.range_read_size
     range_read_offset = kwargs.get("range_read_offset")
@@ -65,18 +116,53 @@ def READ(bucket, blob_name, checksum, args, **kwargs):
         start = 0
         end = -1
 
-    file_path = f"{os.getcwd()}/{blob_name}"
-    with open(file_path, "wb") as file_obj:
-        start_time = time.monotonic_ns()
-        blob.download_to_file(file_obj, checksum=checksum, start=start, end=end)
-        end_time = time.monotonic_ns()
+    # file_path = f"{os.getcwd()}/{blob_name}"
+    # with open(file_path, "wb") as file_obj:
+    #     start_time = time.monotonic_ns()
+    #     blob.download_to_file(file_obj, checksum=checksum, start=start, end=end)
+    #     end_time = time.monotonic_ns()
+
+    # elapsed_time = round(
+    #     (end_time - start_time) / 1000
+    # )  # convert nanoseconds to microseconds
+
+    # # Clean up local file
+    # _pu.cleanup_file(file_path)
+
+    ### TEMP CREATE GRPC STUB ###
+    target = "storage.googleapis.com:443"
+    auth_scopes = (
+        "https://www.googleapis.com/auth/storage",
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/devstorage.full_control",
+    )
+    # Get credentials and create channel.
+    credentials, _ = google.auth.default(scopes=auth_scopes)
+    channel = grpc_helpers.create_channel(
+        target, credentials, default_scopes=auth_scopes
+    )
+    stub = storage_pb2_grpc.StorageStub(channel)
+    ### TEMP CREATE GRPC STUB ###
+
+    ### READ OBJECT ###
+    bucket_id = bucket.name
+    bucket_name = f"projects/_/buckets/{bucket_id}"
+    metadata = [("x-goog-request-params", f"bucket=projects/_/buckets/{bucket_id}")]
+    read_obj_name = blob_name
+
+    start_time = time.monotonic_ns()
+    request = storage_pb2.ReadObjectRequest(
+        bucket=bucket_name,
+        object=read_obj_name,
+    )
+    stream = stub.ReadObject(request=request, metadata=metadata)
+    for response in stream:
+        pass
+    end_time = time.monotonic_ns()
 
     elapsed_time = round(
         (end_time - start_time) / 1000
     )  # convert nanoseconds to microseconds
-
-    # Clean up local file
-    _pu.cleanup_file(file_path)
 
     return elapsed_time
 
