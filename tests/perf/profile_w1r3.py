@@ -55,7 +55,7 @@ def WRITE(bucket, blob_name, checksum, size, args, **kwargs):
     # Get credentials and create channel.
     credentials, _ = google.auth.default(scopes=auth_scopes)
     channel = grpc_helpers.create_channel(
-        target, credentials, default_scopes=auth_scopes
+        target, credentials, default_scopes=auth_scopes, attempt_direct_path=True
     )
     stub = storage_pb2_grpc.StorageStub(channel)
     ### TEMP CREATE GRPC STUB ###
@@ -143,7 +143,7 @@ def READ(bucket, blob_name, checksum, args, **kwargs):
     # Get credentials and create channel.
     credentials, _ = google.auth.default(scopes=auth_scopes)
     channel = grpc_helpers.create_channel(
-        target, credentials, default_scopes=auth_scopes
+        target, credentials, default_scopes=auth_scopes, attempt_direct_path=True
     )
     stub = storage_pb2_grpc.StorageStub(channel)
     ### TEMP CREATE GRPC STUB ###
