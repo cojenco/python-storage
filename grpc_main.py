@@ -2,6 +2,9 @@
 ## Using storage v2 gRPC proto stubs to get bucket, read, write ##
 ##################################################################
 import crc32c
+import os
+import random
+
 from google.storage.v2 import storage_pb2
 from google.storage.v2 import storage_pb2_grpc
 import google.auth
@@ -42,28 +45,51 @@ print(f"!! got bucket {bucket_name}")
 
 
 ### WRITE OBJECT ###
-obj_name = "313write1"
-content = b"hello world!"
-request = storage_pb2.WriteObjectRequest(
+obj_name = "324write1"
+size = 268435456
+QUANTUM = 2 * 1024 * 1000
+media = os.urandom(size)
+requests = []
+
+offset = 0
+end = min(QUANTUM, size)
+finish_write = end == size
+content = media[0:end]
+r1 = storage_pb2.WriteObjectRequest(
     write_object_spec=storage_pb2.WriteObjectSpec(
         resource={
             "name": obj_name,
             "bucket": bucket_name,
         },
     ),
-    write_offset=0,
+    write_offset=offset,
     checksummed_data=storage_pb2.ChecksummedData(
         content=content, crc32c=crc32c.crc32c(content)
     ),
-    finish_write=True,
+    finish_write=finish_write,
 )
-requests = [request]
+requests.append(r1)
+
+while end < size:
+    offset = end
+    end = min(end + QUANTUM, size)
+    finish_write = end == size
+    content = media[offset : end]
+    req = storage_pb2.WriteObjectRequest(
+        write_offset=offset,
+        checksummed_data=storage_pb2.ChecksummedData(
+            content=content, crc32c=crc32c.crc32c(content)
+        ),
+        finish_write=finish_write,
+    )
+    requests.append(req)
+
 def request_generator():
     for request in requests:
         yield request
 metadata = [("x-goog-request-params", f"bucket=projects/_/buckets/{bucket_id}")]
 response = stub.WriteObject(request_generator(), metadata=metadata)
-print(f"successfully uploaded {obj_name} to {bucket_name}")
+print(f"!! successfully uploaded {obj_name} to {bucket_name}")
 
 
 ### READ OBJECT ###
@@ -75,4 +101,5 @@ request = storage_pb2.ReadObjectRequest(
 stream = stub.ReadObject(request=request, metadata=metadata)
 print("!! Reading object")
 for response in stream:
-    print(response)
+    pass
+    # print(response)

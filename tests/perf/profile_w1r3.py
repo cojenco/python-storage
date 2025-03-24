@@ -60,51 +60,67 @@ def WRITE(bucket, blob_name, checksum, size, args, **kwargs):
     stub = storage_pb2_grpc.StorageStub(channel)
     ### TEMP CREATE GRPC STUB ###
 
+
     ### WRITE OBJECT ###
     bucket_id = bucket.name
     bucket_name = f"projects/_/buckets/{bucket_id}"
-    content = os.urandom(size)
-    start_time = time.monotonic_ns()
-    request = storage_pb2.WriteObjectRequest(
+    QUANTUM = 2 * 1024 * 1000
+    media = os.urandom(size)
+    requests = []
+
+    offset = 0
+    end = min(QUANTUM, size)
+    finish_write = end == size
+    content = media[0:end]
+    r1 = storage_pb2.WriteObjectRequest(
         write_object_spec=storage_pb2.WriteObjectSpec(
             resource={
                 "name": blob_name,
                 "bucket": bucket_name,
             },
         ),
-        write_offset=0,
+        write_offset=offset,
         checksummed_data=storage_pb2.ChecksummedData(
             content=content, crc32c=crc32c.crc32c(content)
         ),
-        finish_write=True,
+        finish_write=finish_write,
     )
-    requests = [request]
+    requests.append(r1)
+
+
+    while end < size:
+        offset = end
+        end = min(end + QUANTUM, size)
+        finish_write = end == size
+        content = media[offset : end]
+        req = storage_pb2.WriteObjectRequest(
+            write_offset=offset,
+            checksummed_data=storage_pb2.ChecksummedData(
+                content=content, crc32c=crc32c.crc32c(content)
+            ),
+            finish_write=finish_write,
+        )
+        requests.append(req)
+
     def request_generator():
         for request in requests:
             yield request
+
+    start_time = time.monotonic_ns()
     metadata = [("x-goog-request-params", f"bucket=projects/_/buckets/{bucket_id}")]
     _ = stub.WriteObject(request_generator(), metadata=metadata)
     end_time = time.monotonic_ns()
 
-    # start_time = time.monotonic_ns()
-    # blob.upload_from_filename(file_path, checksum=checksum, if_generation_match=0)
-    # end_time = time.monotonic_ns()
 
     elapsed_time = round(
         (end_time - start_time) / 1000
     )  # convert nanoseconds to microseconds
-
-    # Clean up local file
-    # _pu.cleanup_file(file_path)
 
     return elapsed_time
 
 
 def READ(bucket, blob_name, checksum, args, **kwargs):
     """Perform a download and return latency."""
-    # blob = bucket.blob(blob_name)
-    # if not blob.exists():
-    #     raise Exception("Blob does not exist. Previous WRITE failed.")
 
     range_read_size = args.range_read_size
     range_read_offset = kwargs.get("range_read_offset")
@@ -116,18 +132,6 @@ def READ(bucket, blob_name, checksum, args, **kwargs):
         start = 0
         end = -1
 
-    # file_path = f"{os.getcwd()}/{blob_name}"
-    # with open(file_path, "wb") as file_obj:
-    #     start_time = time.monotonic_ns()
-    #     blob.download_to_file(file_obj, checksum=checksum, start=start, end=end)
-    #     end_time = time.monotonic_ns()
-
-    # elapsed_time = round(
-    #     (end_time - start_time) / 1000
-    # )  # convert nanoseconds to microseconds
-
-    # # Clean up local file
-    # _pu.cleanup_file(file_path)
 
     ### TEMP CREATE GRPC STUB ###
     target = "storage.googleapis.com:443"
@@ -156,8 +160,7 @@ def READ(bucket, blob_name, checksum, args, **kwargs):
         object=read_obj_name,
     )
     stream = stub.ReadObject(request=request, metadata=metadata)
-    for response in stream:
-        pass
+    list(stream)
     end_time = time.monotonic_ns()
 
     elapsed_time = round(
